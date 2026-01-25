@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analyze - NLP Legal Entity Extraction</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">Legal NLP</div>
+            <ul class="nav-menu">
+                <li><a href="/" class="nav-link">Home</a></li>
+                <li><a href="/analyze" class="nav-link active">Analyze</a></li>
+                <li><a href="/about" class="nav-link">About</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container">
+        <header class="page-header">
+            <h1>Analyze Legal Document</h1>
+            <p class="subtitle">Upload a PDF file to extract and classify entities</p>
+        </header>
+
+        <section class="analyze-section">
+            <div class="upload-container">
+                <div class="upload-box" id="uploadBox">
+                    <div class="upload-icon">📄</div>
+                    <h3>Upload PDF Document</h3>
+                    <p>Drag and drop your PDF file here, or click to browse</p>
+                    <input type="file" id="pdfInput" accept=".pdf,.txt" hidden>
+                    <button class="btn-secondary" id="chooseFileBtn">Choose File</button>
+                    <p class="file-info" id="fileInfo"></p>
+                </div>
+
+                <div class="analyze-controls">
+                    <button id="analyzeBtn" class="btn-primary btn-large" disabled>Analyze Document</button>
+                    <button id="clearBtn" class="btn-secondary">Clear</button>
+                </div>
+            </div>
+
+            <div class="output-container" id="outputContainer" style="display: none;">
+                <h2>Extraction Results</h2>
+                <div class="results-summary" id="resultsSummary"></div>
+                <div class="output-box" id="outputBox">
+                    <p class="placeholder">Results will appear here...</p>
+                </div>
+            </div>
+
+            <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+                <div class="loading-spinner"></div>
+                <p>Analyzing document... This may take a few moments.</p>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        const pdfInput = document.getElementById('pdfInput');
+        const chooseFileBtn = document.getElementById('chooseFileBtn');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const fileInfo = document.getElementById('fileInfo');
+        const outputContainer = document.getElementById('outputContainer');
+        const outputBox = document.getElementById('outputBox');
+        const resultsSummary = document.getElementById('resultsSummary');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const uploadBox = document.getElementById('uploadBox');
+
+        let selectedFile = null;
+
+        // Choose file button
+        chooseFileBtn.addEventListener('click', () => {
+            pdfInput.click();
+        });
+
+        // When file is selected
+        pdfInput.addEventListener('change', () => {
+            if (pdfInput.files && pdfInput.files[0]) {
+                selectedFile = pdfInput.files[0];
+                fileInfo.textContent = `Selected: ${selectedFile.name} (${(selectedFile.size / 1024 / 1024).toFixed(2)} MB)`;
+                analyzeBtn.disabled = false;
+            } else {
+                selectedFile = null;
+                fileInfo.textContent = '';
+                analyzeBtn.disabled = true;
+            }
+        });
+
+        // Drag & drop support
+        uploadBox.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadBox.classList.add('dragover');
+        });
+
+        uploadBox.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            uploadBox.classList.remove('dragover');
+        });
+
+        uploadBox.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadBox.classList.remove('dragover');
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                selectedFile = e.dataTransfer.files[0];
+                pdfInput.files = e.dataTransfer.files;
+                fileInfo.textContent = `Selected: ${selectedFile.name} (${(selectedFile.size / 1024 / 1024).toFixed(2)} MB)`;
+                analyzeBtn.disabled = false;
+            }
+        });
+
+        // Clear button
+        clearBtn.addEventListener('click', () => {
+            selectedFile = null;
+            pdfInput.value = '';
+            fileInfo.textContent = '';
+            analyzeBtn.disabled = true;
+            outputContainer.style.display = 'none';
+            outputBox.innerHTML = '<p class="placeholder">Results will appear here...</p>';
+            resultsSummary.innerHTML = '';
+        });
+
+        // Analyze button
+        analyzeBtn.addEventListener('click', async () => {
+            if (!selectedFile) {
+                alert('Please select a file first.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+
+            loadingOverlay.style.display = 'flex';
+            analyzeBtn.disabled = true;
+
+            try {
+                const response = await fetch('/api/analyze', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (!response.ok || result.success === false) {
+                    const msg = result.error || 'Analysis failed.';
+                    alert(msg);
+                    return;
+                }
+
+                // Show results
+                outputContainer.style.display = 'block';
+                renderResults(result.data);
+            } catch (err) {
+                console.error(err);
+                alert('Error while analyzing document.');
+            } finally {
+                loadingOverlay.style.display = 'none';
+                analyzeBtn.disabled = false;
+            }
+        });
+
+        function renderResults(data) {
+            const summary = data.contract_analysis.summary_statistics;
+
+            resultsSummary.innerHTML = `
+                <div><strong>Total clauses:</strong> ${summary.total_clauses}</div>
+                <div><strong>Clauses with labels:</strong> ${summary.clauses_with_labels}</div>
+                <div><strong>Total entities:</strong> ${summary.total_entities}</div>
+                <div><strong>High importance clauses:</strong> ${summary.high_importance_clauses}</div>
+            `;
+
+            const clauses = data.contract_analysis.top_important_clauses || [];
+            if (!clauses.length) {
+                outputBox.innerHTML = '<p class="placeholder">No important clauses detected.</p>';
+                return;
+            }
+
+            let html = '';
+            clauses.forEach(c => {
+                html += `
+                    <div class="entity-item legal">
+                        <div class="entity-label legal">Clause #${c.clause_id + 1} (Score: ${c.importance_score.toFixed(2)})</div>
+                        <div class="entity-text">${escapeHtml(c.text)}</div>
+                        <div style="margin-top:8px;">
+                            ${(c.predicted_labels || []).map(l =>
+                                `<span class="label-tag">${l.label} (${l.score.toFixed(2)})</span>`
+                            ).join(' ')}
+                        </div>
+                    </div>
+                `;
+            });
+            outputBox.innerHTML = html;
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+    </script>
+</body>
+</html>
