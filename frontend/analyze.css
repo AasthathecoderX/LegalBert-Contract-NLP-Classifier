@@ -825,3 +825,10 @@ footer p {
   font-weight: 500;
   margin-top: 0;
 }
+/* NER labels (PER, ORG, LOC, MISC) with black text */
+.entity-label.per,
+.entity-label.org,
+.entity-label.loc,
+.entity-label.misc {
+  color: #000000;
+}
