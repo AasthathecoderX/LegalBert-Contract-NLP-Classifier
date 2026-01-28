@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Analyze - NLP Legal Entity Extraction</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='analyze.css') }}">
+
+</head>
+
+<body>
+  <nav class="navbar">
+    <div class="nav-container">
+      <div class="nav-logo">Legal NLP</div>
+      <ul class="nav-menu">
+        <li><a href="/" class="nav-link">Home</a></li>
+        <li><a href="/analyze" class="nav-link active">Analyze</a></li>
+        <li><a href="/about" class="nav-link">About</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <div class="container">
+    <header class="page-header">
+      <h1>Analyze Legal Document</h1>
+      <p class="subtitle">Upload a PDF file to extract and classify entities</p>
+    </header>
+
+    <section class="analyze-section">
+      <div class="upload-container">
+        <div class="upload-box" id="uploadBox">
+          <div class="upload-icon">📄</div>
+          <h3>Upload PDF Document</h3>
+          <p>Drag and drop your PDF file here, or click to browse</p>
+          <input type="file" id="pdfInput" accept=".pdf,.txt" hidden />
+          <button class="btn-secondary" id="chooseFileBtn">Choose File</button>
+          <p class="file-info" id="fileInfo"></p>
+        </div>
+
+        <div class="analyze-controls">
+<button id="analyzeBtn" type="button" class="btn-primary btn-large" disabled>
+  Analyze Document
+</button>
+>
+          <button id="clearBtn" class="btn-secondary">Clear</button>
+        </div>
+      </div>
+
+      <div class="output-container" id="outputContainer" style="display:none;">
+        <h2>Extraction Results</h2>
+
+        <div class="results-summary" id="resultsSummary"></div>
+
+        <div class="output-box" id="outputBox">
+          <p class="placeholder">Results will appear here...</p>
+        </div>
+      </div>
+
+      <div class="loading-overlay" id="loadingOverlay" style="display:none;">
+        <div class="loading-spinner"></div>
+        <p>Analyzing document... This may take a few moments.</p>
+      </div>
+    </section>
+  </div>
+<script src="{{ url_for('static', filename='analyze.js') }}" defer></script>
+
+</body>
+</html>
