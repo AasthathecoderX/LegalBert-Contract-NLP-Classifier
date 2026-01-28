@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Analyze - NLP Legal Entity Extraction</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='analyze.css') }}">
 </head>
+
 <body>
   <nav class="navbar">
     <div class="nav-container">
@@ -30,35 +31,30 @@
           <div class="upload-icon">📄</div>
           <h3>Upload PDF Document</h3>
           <p>Drag and drop your PDF file here, or click to browse</p>
-          <input type="file" id="pdfInput" accept=".pdf,.txt" hidden>
+          <input type="file" id="pdfInput" accept=".pdf,.txt" hidden />
           <button class="btn-secondary" id="chooseFileBtn">Choose File</button>
           <p class="file-info" id="fileInfo"></p>
         </div>
 
         <div class="analyze-controls">
-          <button id="analyzeBtn" class="btn-primary btn-large" disabled>Analyze Document</button>
+          <button id="analyzeBtn" class="btn-primary btn-large" disabled>
+            Analyze Document
+          </button>
           <button id="clearBtn" class="btn-secondary">Clear</button>
         </div>
       </div>
 
-      <div class="output-container" id="outputContainer" style="display: none;">
+      <div class="output-container" id="outputContainer" style="display:none;">
         <h2>Extraction Results</h2>
 
-        <!-- Dark blue summary box -->
         <div class="results-summary" id="resultsSummary"></div>
 
-        <!-- View more button: directly under blue box, centered -->
-        <button id="viewMoreBtn" class="btn-secondary">
-  View more clauses
-</button>
-
-        <!-- Clause cards -->
         <div class="output-box" id="outputBox">
           <p class="placeholder">Results will appear here...</p>
         </div>
       </div>
 
-      <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+      <div class="loading-overlay" id="loadingOverlay" style="display:none;">
         <div class="loading-spinner"></div>
         <p>Analyzing document... This may take a few moments.</p>
       </div>
@@ -66,280 +62,202 @@
   </div>
 
 <script>
-  const pdfInput = document.getElementById('pdfInput');
-  const chooseFileBtn = document.getElementById('chooseFileBtn');
-  const analyzeBtn = document.getElementById('analyzeBtn');
-  const clearBtn = document.getElementById('clearBtn');
-  const fileInfo = document.getElementById('fileInfo');
-  const outputContainer = document.getElementById('outputContainer');
-  const outputBox = document.getElementById('outputBox');
-  const resultsSummary = document.getElementById('resultsSummary');
-  const loadingOverlay = document.getElementById('loadingOverlay');
-  const uploadBox = document.getElementById('uploadBox');
-  const viewMoreBtn = document.getElementById('viewMoreBtn');
+/* =========================
+   DOM REFERENCES
+========================= */
+const pdfInput = document.getElementById('pdfInput');
+const chooseFileBtn = document.getElementById('chooseFileBtn');
+const analyzeBtn = document.getElementById('analyzeBtn');
+const clearBtn = document.getElementById('clearBtn');
+const fileInfo = document.getElementById('fileInfo');
+const outputContainer = document.getElementById('outputContainer');
+const outputBox = document.getElementById('outputBox');
+const resultsSummary = document.getElementById('resultsSummary');
+const loadingOverlay = document.getElementById('loadingOverlay');
+const uploadBox = document.getElementById('uploadBox');
 
-  let selectedFile = null;
-  let allClauses = [];
-  let showingAll = false;
+/* =========================
+   STATE
+========================= */
+let selectedFile = null;
+let allClauses = [];
+let showingAll = false;
 
-  // Choose file button
-  chooseFileBtn.addEventListener('click', () => {
-    pdfInput.click();
-  });
+/* =========================
+   VIEW MORE BUTTON (DYNAMIC)
+========================= */
+/* =========================
+   VIEW MORE BUTTON SETUP
+========================= */
+const viewMoreWrapper = document.createElement('div');
+viewMoreWrapper.className = 'view-more-wrapper';
 
-  // When file is selected
-  pdfInput.addEventListener('change', () => {
-    if (pdfInput.files && pdfInput.files[0]) {
-      selectedFile = pdfInput.files[0];
-      fileInfo.textContent = `Selected: ${selectedFile.name} (${(selectedFile.size / 1024 / 1024).toFixed(2)} MB)`;
-      analyzeBtn.disabled = false;
-    } else {
-      selectedFile = null;
-      fileInfo.textContent = '';
-      analyzeBtn.disabled = true;
-    }
-  });
+const viewMoreBtn = document.createElement('button');
+viewMoreBtn.id = 'viewMoreBtn';
+viewMoreBtn.className = 'btn-secondary';
+viewMoreBtn.textContent = 'View more clauses';
 
-  // Drag & drop support
-  uploadBox.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    uploadBox.classList.add('dragover');
-  });
+viewMoreWrapper.appendChild(viewMoreBtn);
 
-  uploadBox.addEventListener('dragleave', (e) => {
-    e.preventDefault();
-    uploadBox.classList.remove('dragover');
-  });
+/* =========================
+   FILE HANDLING
+========================= */
+chooseFileBtn.onclick = () => pdfInput.click();
 
-  uploadBox.addEventListener('drop', (e) => {
-    e.preventDefault();
-    uploadBox.classList.remove('dragover');
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      selectedFile = e.dataTransfer.files[0];
-      pdfInput.files = e.dataTransfer.files;
-      fileInfo.textContent = `Selected: ${selectedFile.name} (${(selectedFile.size / 1024 / 1024).toFixed(2)} MB)`;
-      analyzeBtn.disabled = false;
-    }
-  });
+pdfInput.onchange = () => {
+  if (pdfInput.files[0]) {
+    selectedFile = pdfInput.files[0];
+    fileInfo.textContent = `Selected: ${selectedFile.name}`;
+    analyzeBtn.disabled = false;
+  }
+};
 
-  // Clear button
-  clearBtn.addEventListener('click', () => {
-    selectedFile = null;
-    pdfInput.value = '';
-    fileInfo.textContent = '';
-    analyzeBtn.disabled = true;
+clearBtn.onclick = () => {
+  selectedFile = null;
+  pdfInput.value = '';
+  fileInfo.textContent = '';
+  analyzeBtn.disabled = true;
+  outputContainer.style.display = 'none';
+  outputBox.innerHTML = '<p class="placeholder">Results will appear here...</p>';
+  resultsSummary.innerHTML = '';
+  allClauses = [];
+  showingAll = false;
+};
 
-    outputContainer.style.display = 'none';
-    outputBox.innerHTML = '<p class="placeholder">Results will appear here...</p>';
-    resultsSummary.innerHTML = '';
+/* =========================
+   ANALYZE
+========================= */
+analyzeBtn.onclick = async () => {
+  if (!selectedFile) return;
 
-    allClauses = [];
-    showingAll = false;
-    viewMoreBtn.style.display = 'none';
-  });
+  const formData = new FormData();
+  formData.append('file', selectedFile);
 
-  // Analyze button
-  analyzeBtn.addEventListener('click', async () => {
-    if (!selectedFile) {
-      alert('Please select a file first.');
-      return;
-    }
+  loadingOverlay.style.display = 'flex';
 
-    const formData = new FormData();
-    formData.append('file', selectedFile);
+  const res = await fetch('/api/analyze', { method: 'POST', body: formData });
+  const result = await res.json();
 
-    loadingOverlay.style.display = 'flex';
-    analyzeBtn.disabled = true;
+  loadingOverlay.style.display = 'none';
 
-    try {
-      const response = await fetch('/api/analyze', {
-        method: 'POST',
-        body: formData
+  if (!result.success) return alert('Analysis failed');
+
+  outputContainer.style.display = 'block';
+  renderResults(result.data);
+};
+
+/* =========================
+   RENDER RESULTS
+========================= */
+function renderResults(data) {
+  const summary = data.contract_analysis.summary_statistics;
+
+  resultsSummary.innerHTML = `
+    <div>Total clauses: ${summary.total_clauses}</div>
+    <div>Clauses with labels: ${summary.clauses_with_labels}</div>
+    <div>Total entities: ${summary.total_entities}</div>
+    <div>High importance clauses: ${summary.high_importance_clauses}</div>
+  `;
+
+  allClauses = (data.contract_analysis.all_clauses || [])
+  .filter(c => c.predicted_labels?.length);
+
+   
+
+  showingAll = false;
+  renderClauseList(showingAll);
+}
+
+/* =========================
+   RENDER CLAUSES
+========================= */
+function renderClauseList(showAll = false) {
+  if (!allClauses.length) {
+    outputBox.innerHTML = '<p class="placeholder">No important clauses found.</p>';
+    return;
+  }
+
+  const clausesToShow = showAll ? allClauses : allClauses.slice(0, 10);
+  let html = '';
+
+  clausesToShow.forEach((c, index) => {
+    const clauseNumber =
+      typeof c.clause_id === 'number' ? c.clause_id + 1 : index + 1;
+
+    const firstLabelObj = c.predicted_labels?.[0];
+    const mainLabel = firstLabelObj
+      ? firstLabelObj.label.replace(/-Answer$/i, '')
+      : 'Unknown';
+
+    const prob = firstLabelObj
+      ? firstLabelObj.score.toFixed(2)
+      : '0.00';
+
+    let entitiesHtml = '';
+
+    if (c.entities?.length) {
+      entitiesHtml = '<div style="margin-top:12px;"><strong>Entities:</strong></div>';
+
+      c.entities.slice(0, 10).forEach(entity => {
+        const label = (entity.label || entity.type || 'unknown').toLowerCase();
+        const text = entity.text || entity.entity || '';
+
+        entitiesHtml += `
+          <div class="entity-item ${label}">
+            <span class="entity-label ${label}">${label.toUpperCase()}</span>
+            <span class="entity-text">${escapeHtml(text)}</span>
+          </div>
+        `;
       });
-
-      const result = await response.json();
-
-      if (!response.ok || result.success === false) {
-        const msg = result.error || 'Analysis failed.';
-        alert(msg);
-        return;
-      }
-
-      outputContainer.style.display = 'block';
-      renderResults(result.data);
-    } catch (err) {
-      console.error(err);
-      alert('Error while analyzing document.');
-    } finally {
-      loadingOverlay.style.display = 'none';
-      analyzeBtn.disabled = false;
-    }
-  });
-
-  // Render results and set up top10 + view more
-  function renderResults(data) {
-    const summary = data.contract_analysis.summary_statistics;
-
-    resultsSummary.innerHTML = `
-      <div><strong>Total clauses:</strong> ${summary.total_clauses}</div>
-      <div><strong>Clauses with labels:</strong> ${summary.clauses_with_labels}</div>
-      <div><strong>Total entities:</strong> ${summary.total_entities}</div>
-      <div><strong>High importance clauses:</strong> ${summary.high_importance_clauses}</div>
-    `;
-
-    const all = data.contract_analysis.top_important_clauses || [];
-
-    // keep only clauses that actually have at least one predicted label
-    const clauses = all.filter(
-      c => c.predicted_labels && c.predicted_labels.length > 0
-    );
-
-    allClauses = clauses;
-    showingAll = false;
-
-    if (!clauses.length) {
-      outputBox.innerHTML =
-        '<p class="placeholder">No important clauses with identified type.</p>';
-      viewMoreBtn.style.display = 'none';
-      return;
-    }
-
-    renderClauseList(false);
-
-    if (clauses.length > 10) {
-      viewMoreBtn.style.display = 'inline-block';
-      viewMoreBtn.textContent = 'View more clauses';
     } else {
-      viewMoreBtn.style.display = 'none';
+      entitiesHtml =
+        '<div style="margin-top:12px;"><strong>Entities:</strong> None detected</div>';
     }
-  }
 
-  // Helper: prettify glued entity text (IndemnifiedParty -> Indemnified Party, etc.)
-  function prettifyEntityText(text) {
-    if (!text) return '';
-    let t = text;
-
-    // lower+Upper (CaliforniaEscrowLaw -> California EscrowLaw)
-    t = t.replace(/([a-z])([A-Z])/g, '$1 $2');
-    // generic camel-case split (IndemnifiedParty -> Indemnified Party)
-    t = t.replace(/([a-zA-Z])([A-Z][a-z])/g, '$1 $2');
-
-    return t.trim();
-  }
-
-  // Build clause list HTML (top10 or all)
-  function renderClauseList(showAll) {
-    if (!allClauses || !allClauses.length) return;
-
-    const clausesToShow = showAll ? allClauses : allClauses.slice(0, 10);
-
-    let html = '';
-    clausesToShow.forEach((c, index) => {
-      const clauseNumber =
-        typeof c.clause_id === 'number' ? c.clause_id + 1 : index + 1;
-
-      const ordinal =
-        clauseNumber === 1
-          ? '1st'
-          : clauseNumber === 2
-          ? '2nd'
-          : clauseNumber === 3
-          ? '3rd'
-          : `${clauseNumber}th`;
-
-      const firstPart = truncateClauseText(c.text, 80);
-
-      // Clause type (first predicted label, strip -Answer, with score)
-      const firstLabelObj = c.predicted_labels && c.predicted_labels.length > 0
-        ? c.predicted_labels[0]
-        : null;
-      const mainLabel = firstLabelObj ? firstLabelObj.label.replace(/-Answer$/i, '') : 'Unknown';
-      const prob = firstLabelObj ? firstLabelObj.score.toFixed(2) : '0.00';
-
-      // NER Entities section (deduplicate + prettify)
-      let entitiesHtml = '';
-      if (c.entities && c.entities.length > 0) {
-        const seen = new Set();
-        const uniqueEntities = [];
-        c.entities.forEach(entity => {
-          const key = (entity.label || entity.type || '') + '|' + (entity.text || entity.entity || '');
-          if (!seen.has(key)) {
-            seen.add(key);
-            uniqueEntities.push(entity);
-          }
-        });
-
-        entitiesHtml = '<div style="margin-top:12px;"><strong>Entities:</strong></div>';
-        uniqueEntities.slice(0, 10).forEach((entity) => {
-          const rawText = entity.text || entity.entity || '';
-          const entityText = escapeHtml(prettifyEntityText(rawText));
-          const labelRaw = entity.label || entity.type || 'Unknown';
-          const entityLabel = escapeHtml(labelRaw.toLowerCase());
-
-          entitiesHtml += `
-            <div class="entity-item ${entityLabel}">
-              <span class="entity-label ${entityLabel}">${entityLabel.toUpperCase()}</span>
-              <span class="entity-text">${entityText}</span>
-            </div>
-          `;
-        });
-        if (uniqueEntities.length > 10) {
-          entitiesHtml += `<p style="font-size:0.9rem; color:var(--text-secondary);">... and ${uniqueEntities.length - 10} more</p>`;
-        }
-      } else {
-        entitiesHtml = '<div style="margin-top:12px;"><strong>Entities:</strong> None detected</div>';
-      }
-
-      html += `
-        <div class="entity-item legal">
-          <div class="entity-label legal">
-            Clause #${clauseNumber} (Score: ${c.importance_score.toFixed(2)})
-          </div>
-          <div class="entity-text">
-            The ${ordinal} clause is that ${escapeHtml(firstPart)}
-          </div>
-          <div style="margin-top:8px; font-weight:600; color:var(--primary-color);">
-            Clause type: ${escapeHtml(mainLabel)}(${prob})
-          </div>
-          ${entitiesHtml}
+    html += `
+      <div class="entity-item legal">
+        <div class="entity-label legal">
+          Clause #${clauseNumber} (Score: ${c.importance_score.toFixed(2)})
         </div>
-      `;
-    });
-
-    outputBox.innerHTML = html;
-  }
-
-  // Toggle view more / view top10
-  viewMoreBtn.addEventListener('click', () => {
-    if (!allClauses.length) return;
-
-    showingAll = !showingAll;
-    renderClauseList(showingAll);
-
-    viewMoreBtn.textContent = showingAll
-      ? 'View top 10 clauses'
-      : 'View more clauses';
+        <div class="entity-text">
+          ${escapeHtml(c.text).slice(0, 120)}...
+        </div>
+        <div style="margin-top:8px;font-weight:600;color:var(--primary-color);">
+          Clause type: ${escapeHtml(mainLabel)} (${prob})
+        </div>
+        ${entitiesHtml}
+      </div>
+    `;
   });
 
-  function truncateClauseText(text, maxLength = 80) {
-    if (!text) return '';
-    const clean = text.trim();
-    if (clean.length <= maxLength) return clean;
-    return clean.slice(0, maxLength) + '...';
-  }
+  outputBox.innerHTML = html;
 
-  function escapeHtml(text) {
-    if (text === null || text === undefined) return '';
-    const map = {
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#039;'
-    };
-    return String(text).replace(/[&<>"']/g, m => map[m]);
-  }
+  
+    outputBox.appendChild(viewMoreWrapper);
+  
+
+  viewMoreBtn.textContent = showAll
+    ? 'View top 10 clauses'
+    : 'View more clauses';
+}
+
+/* =========================
+   TOGGLE (FIXED)
+========================= */
+viewMoreBtn.onclick = () => {
+  showingAll = !showingAll;
+  renderClauseList(showingAll); // ✅ THIS WAS THE MAIN BUG
+};
+
+/* =========================
+   UTILS (SAFE)
+========================= */
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/[&<>"']/g, m =>
+    ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[m])
+  );
+}
 </script>
-
 </body>
 </html>
