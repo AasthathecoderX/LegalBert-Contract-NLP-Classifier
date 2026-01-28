@@ -89,10 +89,23 @@ LegalBert/
    ```bash
    pip install -r requirements.txt
 
-  ```
+   ```
 
 3. **Start the server**
    ```bash
-   pip install -r requirements.txt
+   cd backend
+   python app.py
 
-```
+   ```
+
+---
+## 🎯 Use Cases
+
+- 📜 **Contract review**  
+- ⚖️ **Legal compliance analysis**  
+- 📚 **Academic legal NLP research**  
+- 🏢 **Enterprise contract intelligence**
+
+
+
+
