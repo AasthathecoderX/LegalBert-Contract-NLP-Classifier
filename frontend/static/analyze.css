@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
 /* =========================
    RESET & VARIABLES
 ========================= */
@@ -62,12 +64,23 @@ body {
 }
 
 .nav-logo {
-  font-size: 1.6rem;
+  font-size: 1.8rem;
   font-weight: 700;
   background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  background-clip: text;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
+
+
+.logo-text {
+  font-family: 'Playfair Display', serif;
+  letter-spacing: 0.5px;
+}
+
 
 .nav-menu {
   list-style: none;

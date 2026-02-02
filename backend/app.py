@@ -11,12 +11,16 @@ from werkzeug.utils import secure_filename
 from utils.inference import LegalNLPInferenceAPI
 from utils.pdf_extractor import PDFTextExtractor
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
 # ---------------- FLASK INIT ----------------
 app = Flask(
     __name__,
-    template_folder="../frontend/templates",
-    static_folder="../frontend/static",
+    template_folder=os.path.join(BASE_DIR, "frontend", "templates"),
+    static_folder=os.path.join(BASE_DIR, "frontend", "static"),
 )
+
 CORS(app)
 
 # ---------------- CONFIG ----------------
@@ -172,4 +176,4 @@ if __name__ == "__main__":
     print("🤖 Model: LegalBERT")
     print("=" * 80)
 
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5500, debug=True)
