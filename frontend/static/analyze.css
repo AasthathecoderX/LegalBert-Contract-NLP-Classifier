@@ -255,3 +255,49 @@ body {
     width: 100%;
   }
 }
+
+
+   .entity-label.org {
+    background: #7B68EE;
+    color: #ffffff;
+  }
+  
+  .entity-label.person {
+    background: #4A90E2;
+    color: #ffffff;
+  }
+  
+  .entity-label.party_role {
+    background: #F39C12;
+    color: #ffffff;
+  }
+  
+  .entity-label.defined_term {
+    background: #16A085;
+    color: #ffffff;
+  }
+  
+  .entity-label.duration {
+    background: #E67E22;
+    color: #ffffff;
+  }
+  
+  .entity-label.money {
+    background: #FF6B6B;
+    color: #ffffff;
+  }
+  
+  .entity-label.date {
+    background: #FFB84D;
+    color: #000000;
+  }
+  
+  .entity-label.gpe {
+    background: #50C878;
+    color: #ffffff;
+  }
+  
+  .entity-label.law {
+    background: #34495E;
+    color: #ffffff;
+  }

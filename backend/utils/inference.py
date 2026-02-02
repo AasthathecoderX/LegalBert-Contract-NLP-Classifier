@@ -1,303 +1,264 @@
-"""
-Inference utilities for the trained LegalBERT model
-"""
-
-import torch
-import torch.nn as nn
-from transformers import AutoTokenizer, AutoModel, AutoModelForTokenClassification
+import os
 import json
 import re
+import torch
+import torch.nn as nn
+import numpy as np
+import requests
 from typing import List, Dict
 from collections import defaultdict
-import numpy as np
+from transformers import AutoTokenizer, AutoModel
+
+
+
+# ============================================================================
+# LEGALBERT CLAUSE CLASSIFIER (UNCHANGED)
+# ============================================================================
 
 class LegalBERTClassifier(nn.Module):
-    """LegalBERT multi-label classifier"""
-    
     def __init__(self, num_labels: int, dropout: float = 0.3):
         super().__init__()
-        self.bert = AutoModel.from_pretrained('nlpaueb/legal-bert-base-uncased')
+        self.bert = AutoModel.from_pretrained("nlpaueb/legal-bert-base-uncased")
         self.dropout = nn.Dropout(dropout)
         self.classifier = nn.Linear(self.bert.config.hidden_size, num_labels)
-    
+
     def forward(self, input_ids, attention_mask):
         outputs = self.bert(input_ids=input_ids, attention_mask=attention_mask)
         pooled = outputs.last_hidden_state[:, 0, :]
         return self.classifier(self.dropout(pooled))
 
+
+# ============================================================================
+# CLAUSE SEGMENTER (ROBUST FOR CONTRACTS)
+# ============================================================================
+
 class ClauseSegmenter:
-    """Segment contracts into clauses"""
-    
-    def __init__(self, min_length=50, max_length=1500):
+    def __init__(self, min_length=80, max_length=1200):
         self.min_length = min_length
         self.max_length = max_length
-        self.pattern = re.compile(
-            r'(?:^|\n)\s*(?:\d+\.\s+|\d+\.\d+\s+|\([a-z]\)\s+|'
-            r'[A-Z][A-Z\s]{2,}:|Section\s+\d+|Article\s+[IVX]+)',
-            re.MULTILINE | re.IGNORECASE
+
+    def segment(self, text: str) -> List[Dict]:
+        blocks = re.split(
+            r'\n\s*(?:\d+\.\d+|\d+\.|\([a-z]\)|SECTION\s+\d+|ARTICLE\s+[IVX]+)\s*',
+            text,
+            flags=re.IGNORECASE
         )
-    
-    def segment(self, text):
-        sections = self.pattern.split(text)
+
         clauses = []
-        
-        for i, sec in enumerate(sections):
-            sec = sec.strip()
-            if len(sec) < self.min_length:
-                continue
-            
-            if len(sec) > self.max_length:
-                sents = re.split(r'(?<=[.!?])\s+(?=[A-Z])', sec)
-                current = ""
-                for s in sents:
-                    if len(current) + len(s) > self.max_length and current:
-                        clauses.append({'id': len(clauses), 'text': current.strip()})
-                        current = s
-                    else:
-                        current += " " + s
-                if current:
-                    clauses.append({'id': len(clauses), 'text': current.strip()})
-            else:
-                clauses.append({'id': len(clauses), 'text': sec})
-        
+        for block in blocks:
+            block = block.strip()
+            if self.min_length <= len(block) <= self.max_length:
+                clauses.append({
+                    "id": len(clauses),
+                    "text": block
+                })
+
+        # fallback if segmentation fails
+        if len(clauses) <= 1:
+            sentences = re.split(r'(?<=[.!?])\s+', text)
+            chunk = ""
+            for s in sentences:
+                if len(chunk) + len(s) > self.max_length:
+                    if len(chunk) >= self.min_length:
+                        clauses.append({"id": len(clauses), "text": chunk})
+                    chunk = s
+                else:
+                    chunk += " " + s
+            if len(chunk) >= self.min_length:
+                clauses.append({"id": len(clauses), "text": chunk})
+
         return clauses
 
+
+# ============================================================================
+# GENAI NER USING PHI-3 (NO LOCAL MODEL DOWNLOAD)
+# ============================================================================
+
+# ============================================================================
+# GENAI NER USING OLLAMA (PHI-3 MINI)
+# ============================================================================
+
 class LegalNER:
-    """Legal Named Entity Recognition"""
-    
-    def __init__(self, model_name="dslim/bert-base-NER"):
+    """
+    GenAI-based Legal NER using Phi-3 Mini via Ollama (CPU-friendly)
+    """
+
+    def __init__(self, model_name="phi3:mini"):
+        self.model_name = model_name
+        self.url = "http://localhost:11434/api/generate"
+        print(f"🤖 Using Ollama GenAI NER → {model_name}")
+
+    def extract_entities(self, text: str) -> List[Dict]:
+        prompt = f"""
+You are a legal NLP system.
+
+From the clause below, extract named entities relevant to legal contracts.
+
+Return ONLY valid JSON in this format:
+[
+  {{
+    "text": "...",
+    "type": "ORG | PERSON | DATE | MONEY | LAW | GPE | DURATION | PARTY_ROLE | DEFINED_TERM"
+  }}
+]
+
+Rules:
+- PARTY_ROLE examples: Affiliate, Licensor, Licensee, Company
+- DEFINED_TERM = capitalized contractual terms
+- Do NOT hallucinate entities
+- If none found, return []
+
+Clause:
+\"\"\"{text}\"\"\"
+"""
+
+        payload = {
+            "model": self.model_name,
+            "prompt": prompt,
+            "stream": False
+        }
+
         try:
-            self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-            self.model = AutoModelForTokenClassification.from_pretrained(model_name)
-            self.model.eval()
-        except:
-            self.model = None
-    
-    def extract_entities(self, text, max_length=512):
-        if self.model is None:
-            return self._rule_based_extraction(text)
-        
-        inputs = self.tokenizer(text, max_length=max_length, truncation=True, 
-                               return_tensors="pt", return_offsets_mapping=True)
-        offset_mapping = inputs.pop('offset_mapping')[0]
-        
-        with torch.no_grad():
-            outputs = self.model(**inputs)
-            predictions = torch.argmax(outputs.logits, dim=-1)[0]
-        
-        tokens = self.tokenizer.convert_ids_to_tokens(inputs['input_ids'][0])
-        entities = []
-        current_entity = None
-        
-        for idx, (token, pred_id, offset) in enumerate(zip(tokens, predictions, offset_mapping)):
-            if token in ['[CLS]', '[SEP]', '[PAD]']:
-                continue
-            
-            label = self.model.config.id2label[pred_id.item()]
-            
-            if label.startswith('B-'):
-                if current_entity:
-                    entities.append(current_entity)
-                current_entity = {
-                    'text': token.replace('##', ''),
-                    'type': label[2:],
-                    'start': offset[0].item(),
-                    'end': offset[1].item()
-                }
-            elif label.startswith('I-') and current_entity:
-                current_entity['text'] += token.replace('##', '')
-                current_entity['end'] = offset[1].item()
-            elif label == 'O' and current_entity:
-                entities.append(current_entity)
-                current_entity = None
-        
-        if current_entity:
-            entities.append(current_entity)
-        
-        return entities
-    
-    def _rule_based_extraction(self, text):
-        entities = []
-        
-        # Dates
-        for match in re.finditer(r'\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b', text):
-            entities.append({'text': match.group(), 'type': 'DATE', 
-                           'start': match.start(), 'end': match.end()})
-        
-        # Money
-        for match in re.finditer(r'\$\s*\d+(?:,\d{3})*(?:\.\d{2})?', text):
-            entities.append({'text': match.group(), 'type': 'MONEY', 
-                           'start': match.start(), 'end': match.end()})
-        
-        # Percentages
-        for match in re.finditer(r'\d+(?:\.\d+)?\s*%', text):
-            entities.append({'text': match.group(), 'type': 'PERCENT', 
-                           'start': match.start(), 'end': match.end()})
-        
-        # Durations
-        for match in re.finditer(r'\d+\s*(?:days?|weeks?|months?|years?)', text, re.IGNORECASE):
-            entities.append({'text': match.group(), 'type': 'DURATION', 
-                           'start': match.start(), 'end': match.end()})
-        
-        return entities
+            response = requests.post(self.url, json=payload, timeout=60)
+            response.raise_for_status()
+            raw = response.json()["response"].strip()
+
+            # Extract JSON safely
+            json_start = raw.find("[")
+            json_end = raw.rfind("]") + 1
+            if json_start == -1 or json_end == -1:
+                return []
+
+            entities = json.loads(raw[json_start:json_end])
+
+            # Minimal validation
+            clean = []
+            for e in entities:
+                if "text" in e and "type" in e and len(e["text"]) > 2:
+                    clean.append(e)
+
+            return clean
+
+        except Exception as e:
+            print(f"⚠️ NER fallback (error): {e}")
+            return []
+
+
+# ============================================================================
+# CONTRACT ANALYZER (CLASSIFICATION + GENAI NER)
+# ============================================================================
 
 class ContractAnalyzer:
-    """Complete contract analysis pipeline"""
-    
-    def __init__(self, classifier, ner_model, tokenizer, categories, device):
+    def __init__(self, classifier, ner, tokenizer, categories, device):
         self.segmenter = ClauseSegmenter()
         self.classifier = classifier
-        self.ner = ner_model
+        self.ner = ner
         self.tokenizer = tokenizer
         self.categories = categories
         self.device = device
         self.classifier.eval()
-    
+
     def analyze_contract(self, contract_text, classification_threshold=0.4, top_k_clauses=10):
-        # Segment
         clauses = self.segmenter.segment(contract_text)
-        
-        # Classify and extract entities
-        analyzed_clauses = []
+
+        analyzed = []
         all_entities = []
         category_counts = defaultdict(int)
-        
+
         for clause in clauses:
-            # Classify
-            inputs = self.tokenizer(clause['text'], max_length=256, padding='max_length',
-                                   truncation=True, return_tensors='pt')
+            inputs = self.tokenizer(
+                clause["text"],
+                max_length=256,
+                truncation=True,
+                padding="max_length",
+                return_tensors="pt"
+            )
             inputs = {k: v.to(self.device) for k, v in inputs.items()}
-            
+
             with torch.no_grad():
-                logits = self.classifier(inputs['input_ids'], inputs['attention_mask'])
+                logits = self.classifier(inputs["input_ids"], inputs["attention_mask"])
                 probs = torch.sigmoid(logits)[0]
-            
-            predictions = []
-            for idx, prob in enumerate(probs):
-                if prob > classification_threshold:
-                    predictions.append({
-                        'label': self.categories[idx],
-                        'score': float(prob)
+
+            preds = []
+            for i, p in enumerate(probs):
+                if p > classification_threshold:
+                    preds.append({
+                        "label": self.categories[i],
+                        "score": float(p)
                     })
-            
-            # Extract entities
-            entities = self.ner.extract_entities(clause['text'])
-            
-            # Calculate importance
-            importance = self._calculate_importance(predictions, entities)
-            
-            clause_result = {
-                'clause_id': clause['id'],
-                'text': clause['text'],
-                'predicted_labels': predictions,
-                'entities': entities,
-                'importance_score': importance,
-                'num_labels': len(predictions),
-                'num_entities': len(entities)
-            }
-            
-            analyzed_clauses.append(clause_result)
+                    category_counts[self.categories[i]] += 1
+
+            entities = self.ner.extract_entities(clause["text"])
             all_entities.extend(entities)
-            
-            for pred in predictions:
-                category_counts[pred['label']] += 1
-        
-        # Rank
-        analyzed_clauses.sort(key=lambda x: x['importance_score'], reverse=True)
-        for rank, clause in enumerate(analyzed_clauses):
-            clause['importance_rank'] = rank + 1
-        
-        # Summary
+
+            importance = self._importance(preds, entities)
+
+            analyzed.append({
+                "clause_id": clause["id"],
+                "text": clause["text"],
+                "predicted_labels": preds,
+                "entities": entities,
+                "importance_score": importance,
+                "num_labels": len(preds),
+                "num_entities": len(entities)
+            })
+
+        analyzed.sort(key=lambda x: x["importance_score"], reverse=True)
+
         summary = {
-            'total_clauses': len(clauses),
-            'clauses_with_labels': sum(1 for c in analyzed_clauses if c['num_labels'] > 0),
-            'total_entities': len(all_entities),
-            'unique_categories': len(category_counts),
-            'top_categories': sorted(category_counts.items(), key=lambda x: x[1], reverse=True)[:10],
-            'entity_distribution': self._count_entity_types(all_entities),
-            'high_importance_clauses': sum(1 for c in analyzed_clauses if c['importance_score'] > 0.7)
+            "total_clauses": len(clauses),
+            "clauses_with_labels": sum(c["num_labels"] > 0 for c in analyzed),
+            "total_entities": len({(e["text"], e["type"]) for e in all_entities}),
+            "unique_categories": len(category_counts),
+            "top_categories": sorted(category_counts.items(), key=lambda x: x[1], reverse=True)[:10]
         }
-        
+
         return {
-            'contract_analysis': {
-                'total_length': len(contract_text),
-                'summary_statistics': summary,
-                'all_clauses': analyzed_clauses,
-                'top_important_clauses': analyzed_clauses[:top_k_clauses]
+            "contract_analysis": {
+                "summary_statistics": summary,
+                "top_important_clauses": analyzed[:top_k_clauses],
+                "all_clauses": analyzed
             }
         }
-    
-    def _calculate_importance(self, predictions, entities):
-        if not predictions:
+
+    def _importance(self, preds, entities):
+        if not preds:
             return 0.0
-        avg_confidence = np.mean([p['score'] for p in predictions])
-        multi_label_bonus = min(len(predictions) / 5.0, 0.3)
-        entity_bonus = min(len([e for e in entities if e['type'] in ['DATE', 'MONEY', 'PERCENT']]) * 0.1, 0.3)
-        return float(min(avg_confidence + multi_label_bonus + entity_bonus, 1.0))
-    
-    def _count_entity_types(self, entities):
-        counts = defaultdict(int)
-        for entity in entities:
-            counts[entity['type']] += 1
-        return dict(counts)
+        score = np.mean([p["score"] for p in preds])
+        score += min(len(entities) * 0.05, 0.3)
+        return min(score, 1.0)
+
+
+# ============================================================================
+# INFERENCE API (USED BY FLASK)
+# ============================================================================
 
 class LegalNLPInferenceAPI:
-    """Main inference API"""
-    
-    def __init__(self, model_path, config_path, device='cpu'):
-        # Load config
-        with open(config_path, 'r', encoding='utf-8') as f:
+    def __init__(self, model_path, config_path, device="cpu"):
+        with open(config_path, "r") as f:
             self.config = json.load(f)
-        
-        self.tokenizer = AutoTokenizer.from_pretrained(self.config['model_name'])
-        
-        # FIXED: Use locally defined LegalBERTClassifier (no external import needed)
+
+        self.tokenizer = AutoTokenizer.from_pretrained(self.config["model_name"])
         self.classifier = LegalBERTClassifier(
-            num_labels=self.config['num_categories'],
-            dropout=self.config['dropout']
+            num_labels=self.config["num_categories"],
+            dropout=self.config["dropout"]
         )
-        
-        # FIXED: Handle checkpoint wrapper robustly
+
         checkpoint = torch.load(model_path, map_location=device)
-        if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
-            model_state_dict = checkpoint['model_state_dict']
-        else:
-            model_state_dict = checkpoint
-        
-        self.classifier.load_state_dict(model_state_dict)
-        self.classifier.to(device)
-        self.classifier.eval()
-        
-        # FIXED: Use locally defined classes (no external imports needed)
+        self.classifier.load_state_dict(
+            checkpoint["model_state_dict"] if "model_state_dict" in checkpoint else checkpoint
+        )
+        self.classifier.to(device).eval()
+
         self.ner = LegalNER()
-        
+
         self.analyzer = ContractAnalyzer(
             classifier=self.classifier,
-            ner_model=self.ner,
+            ner=self.ner,
             tokenizer=self.tokenizer,
-            categories=self.config['categories'],
+            categories=self.config["categories"],
             device=device
         )
-    
-    def analyze(self, contract_text, threshold=0.4):
-        return self.analyzer.analyze_contract(contract_text, classification_threshold=threshold)
-    
-    def quick_classify(self, clause_text, threshold=0.5):
-        inputs = self.tokenizer(clause_text, max_length=256, padding='max_length',
-                               truncation=True, return_tensors='pt')
-        
-        with torch.no_grad():
-            logits = self.classifier(inputs['input_ids'], inputs['attention_mask'])
-            probs = torch.sigmoid(logits)[0]
-        
-        predictions = []
-        for idx, prob in enumerate(probs):
-            if prob > threshold:
-                predictions.append({
-                    'label': self.config['categories'][idx],
-                    'score': float(prob)
-                })
-        return sorted(predictions, key=lambda x: x['score'], reverse=True)
-    
-    def extract_entities(self, text):
-        return self.ner.extract_entities(text)
+
+    def analyze(self, text, threshold=0.4):
+        return self.analyzer.analyze_contract(text, classification_threshold=threshold)
