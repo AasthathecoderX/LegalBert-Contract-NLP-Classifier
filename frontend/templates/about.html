@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>About - NLP Legal Entity Extraction</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>
     <nav class="navbar">
@@ -16,7 +16,7 @@
             <ul class="nav-menu">
                 <li><a href="/" class="nav-link">Home</a></li>
                 <li><a href="/analyze" class="nav-link">Analyze</a></li>
-                <li><a href="/about" class="nav-link">About</a></li>
+                <li><a href="/about" class="nav-link active">About</a></li>
             </ul>
         </div>
     </nav>
@@ -69,22 +69,22 @@ It processes uploaded contracts to segment them into meaningful clauses and extr
                     </p>
                     <div class="benefits-grid">
                         <div class="benefit-item">
-                            <div class="benefit-icon">⚡</div>
+                            <div class="benefit-icon"><i class="fa-solid fa-bolt"></i></div>
                             <h4>Save Time</h4>
                             <p>Process documents in seconds instead of hours</p>
                         </div>
                         <div class="benefit-item">
-                            <div class="benefit-icon">✅</div>
+                            <div class="benefit-icon"><i class="fa-solid fa-circle-check"></i></div>
                             <h4>Reduce Errors</h4>
                             <p>Minimize human mistakes in information extraction</p>
                         </div>
                         <div class="benefit-item">
-                            <div class="benefit-icon">🔍</div>
+                            <div class="benefit-icon"><i class="fa-solid fa-magnifying-glass"></i></div>
                             <h4>Better Research</h4>
                             <p>Quickly find relevant information across multiple documents</p>
                         </div>
                         <div class="benefit-item">
-                            <div class="benefit-icon">📊</div>
+                            <div class="benefit-icon"><i class="fa-solid fa-chart-bar"></i></div>
                             <h4>Organized Data</h4>
                             <p>Get structured, searchable information instead of raw text</p>
                         </div>
@@ -121,4 +121,3 @@ It processes uploaded contracts to segment them into meaningful clauses and extr
     </div>
 </body>
 </html>
-
