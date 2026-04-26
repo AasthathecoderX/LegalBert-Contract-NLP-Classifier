@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
   /* =========================
      DOM REFERENCES
   ========================= */
+  
   const pdfInput = document.getElementById('pdfInput');
   const chooseFileBtn = document.getElementById('chooseFileBtn');
   const analyzeBtn = document.getElementById('analyzeBtn');
