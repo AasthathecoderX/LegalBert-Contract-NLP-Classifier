@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
 
 * {
     margin: 0;
@@ -828,4 +828,268 @@ footer p {
 .entity-item .entity-text {
   font-weight: 500;
   margin-top: 0;
+}
+
+/* Legal theme overrides */
+:root {
+    --primary-color: #243a5a;
+    --primary-light: #3a5378;
+    --primary-dark: #16233a;
+    --secondary-color: #b08a46;
+    --accent-color: #7b6541;
+    --text-primary: #1e2937;
+    --text-secondary: #5b6470;
+    --bg-primary: #fbf8f1;
+    --bg-secondary: #f1eadc;
+    --bg-light: #f6f0e5;
+    --bg-card: #fffdf8;
+    --border-color: #d6cab6;
+    --shadow-sm: 0 1px 3px rgba(16, 27, 44, 0.08);
+    --shadow-md: 0 10px 24px rgba(16, 27, 44, 0.10);
+    --shadow-lg: 0 18px 36px rgba(16, 27, 44, 0.13);
+    --shadow-xl: 0 28px 60px rgba(16, 27, 44, 0.16);
+}
+
+body {
+    color: var(--text-primary);
+    background:
+        radial-gradient(circle at top, rgba(176, 138, 70, 0.14), transparent 32%),
+        linear-gradient(145deg, #f2eadb 0%, #ece2d0 50%, #f9f5eb 100%);
+}
+
+.navbar {
+    background: rgba(251, 248, 241, 0.94);
+    border-bottom: 1px solid rgba(176, 138, 70, 0.22);
+}
+
+.nav-logo {
+    position: relative;
+    background: none;
+    color: var(--primary-dark);
+    -webkit-text-fill-color: currentColor;
+    gap: 12px;
+}
+
+.nav-logo::before {
+    content: "A";
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    background: linear-gradient(145deg, var(--primary-dark), var(--primary-color));
+    color: var(--secondary-color);
+    font-family: 'Cinzel', serif;
+    font-size: 1.1rem;
+    letter-spacing: 0.08em;
+    box-shadow: inset 0 0 0 1px rgba(228, 198, 139, 0.22), 0 12px 24px rgba(22, 35, 58, 0.16);
+}
+
+.logo-text {
+    font-family: 'Cinzel', serif;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--primary-dark);
+    font-size: 1.15rem;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.nav-link {
+    color: var(--text-primary);
+}
+
+.nav-link:hover {
+    background: rgba(36, 58, 90, 0.08);
+    color: var(--primary-dark);
+}
+
+.nav-link.active {
+    background: linear-gradient(135deg, var(--primary-dark), var(--primary-color));
+    color: #fff8eb;
+    box-shadow: 0 8px 20px rgba(22, 35, 58, 0.18);
+}
+
+.container {
+    background: var(--bg-card);
+    border: 1px solid rgba(176, 138, 70, 0.12);
+}
+
+header,
+.home-header,
+.page-header {
+    background:
+        linear-gradient(135deg, rgba(22, 35, 58, 0.98) 0%, rgba(36, 58, 90, 0.96) 62%, rgba(58, 83, 120, 0.94) 100%);
+}
+
+section h2::after {
+    background: linear-gradient(90deg, var(--secondary-color), #d4b176);
+}
+
+.feature-item,
+.about-card,
+.benefit-item {
+    background: linear-gradient(180deg, rgba(255, 253, 248, 0.98) 0%, rgba(246, 240, 229, 0.92) 100%);
+    border: 1px solid rgba(176, 138, 70, 0.18);
+}
+
+.feature-item:hover,
+.about-card:hover,
+.benefit-item:hover {
+    background: #fffdf8;
+    border-color: rgba(176, 138, 70, 0.30);
+}
+
+.feature-item h3,
+.about-card h2,
+.benefit-item h4,
+.applications-list li strong,
+.steps-list li strong,
+.file-info {
+    color: var(--primary-color);
+}
+
+.cta-section,
+.upload-box,
+.output-box {
+    background: linear-gradient(180deg, rgba(246, 240, 229, 0.9) 0%, rgba(255, 253, 248, 0.98) 100%);
+    border-color: rgba(176, 138, 70, 0.18);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary-dark), var(--primary-color));
+    color: #fff9ef;
+    text-decoration: none;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, var(--primary-color), #304a70);
+}
+
+.btn-secondary {
+    background: #f7f1e4;
+    color: var(--primary-dark);
+    border-color: rgba(176, 138, 70, 0.28);
+    text-decoration: none;
+}
+
+.btn-secondary:hover {
+    background: #f1e7d4;
+    border-color: var(--secondary-color);
+    color: var(--primary-dark);
+}
+
+.upload-box:hover {
+    background: linear-gradient(180deg, #f8f2e8 0%, #fffdf8 100%);
+}
+
+.upload-box.dragover {
+    background: #efe4cf;
+}
+
+.results-summary {
+    background: linear-gradient(135deg, var(--primary-dark), var(--primary-color));
+    color: #fff9ef;
+    border: 1px solid rgba(212, 177, 118, 0.28);
+}
+
+.loading-overlay {
+    background: rgba(251, 248, 241, 0.95);
+    color: var(--primary-dark);
+}
+
+.loading-spinner {
+    border-color: rgba(176, 138, 70, 0.18);
+    border-top-color: var(--secondary-color);
+}
+
+.entity-item {
+    background: #fffdf8;
+    border-left-color: var(--secondary-color);
+}
+
+.entity-item.person {
+    border-left-color: #5a6f95;
+}
+
+.entity-item.organization,
+.entity-item.org {
+    border-left-color: #6c5a85;
+}
+
+.entity-item.location,
+.entity-item.gpe {
+    border-left-color: #617961;
+}
+
+.entity-item.date {
+    border-left-color: #c4a05a;
+}
+
+.entity-item.money {
+    border-left-color: #99544b;
+}
+
+.entity-item.legal,
+.entity-item.law,
+.entity-item.party_role,
+.entity-item.defined_term,
+.entity-item.duration {
+    border-left-color: var(--accent-color);
+}
+
+.entity-label.person {
+    background: #5a6f95;
+}
+
+.entity-label.organization,
+.entity-label.org {
+    background: #6c5a85;
+}
+
+.entity-label.location,
+.entity-label.gpe {
+    background: #617961;
+}
+
+.entity-label.date {
+    background: #d5b06b;
+    color: #1e2937;
+}
+
+.entity-label.money {
+    background: #99544b;
+}
+
+.entity-label.legal,
+.entity-label.law,
+.entity-label.party_role,
+.entity-label.defined_term,
+.entity-label.duration {
+    background: var(--accent-color);
+}
+
+.steps-list li,
+.applications-list li {
+    background: #fffdf8;
+    border-left-color: var(--secondary-color);
+}
+
+footer {
+    background: linear-gradient(135deg, #121d30, var(--primary-dark));
+    color: #f7f1e4;
+}
+
+.output-box::-webkit-scrollbar-track,
+.entities-container::-webkit-scrollbar-track {
+    background: #ece2d0;
+}
+
+.output-box::-webkit-scrollbar-thumb,
+.entities-container::-webkit-scrollbar-thumb {
+    background: var(--secondary-color);
+}
+
+.output-box::-webkit-scrollbar-thumb:hover,
+.entities-container::-webkit-scrollbar-thumb:hover {
+    background: #98733a;
 }
